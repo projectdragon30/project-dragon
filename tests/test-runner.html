@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pruebas | PROJECT DRAGON</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="../css/tokens.css">
+    <link rel="stylesheet" href="../css/global.css">
+    <style>
+      body { padding: var(--space-6); }
+      main { width: min(100%, 60rem); margin: auto; }
+      h1 { font-family: var(--font-display); }
+      #test-summary { color: var(--color-accent); }
+      #test-results { display: grid; gap: var(--space-3); padding: 0; list-style: none; }
+      #test-results li { padding: var(--space-3); border: var(--border-subtle); border-radius: var(--radius-sm); }
+      [data-status="passed"] { color: var(--color-active); }
+      [data-status="failed"] { color: var(--color-danger); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="pd-eyebrow">WORLD STATE ENGINE v1.0</p>
+      <h1>Pruebas de fundación</h1>
+      <p id="test-summary" aria-live="polite">Ejecutando pruebas…</p>
+      <ol id="test-results"></ol>
+    </main>
+    <script type="module" src="./test-runner.js"></script>
+  </body>
+</html>

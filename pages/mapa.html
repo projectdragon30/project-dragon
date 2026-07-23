@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Mapa del juego de PROJECT DRAGON — Nivel I.">
+    <title>Mapa del juego | PROJECT DRAGON</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="../css/tokens.css">
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/mapa.css">
+  </head>
+  <body>
+    <div class="atmosphere" aria-hidden="true"></div>
+
+    <header class="hud pd-hud">
+      <div class="hud__identity">
+        <p class="eyebrow pd-eyebrow">MAPA DEL JUEGO</p>
+        <h1>PROJECT DRAGON</h1>
+      </div>
+      <div class="hud__level">
+        <span>NIVEL I — DESPERTAR</span>
+      </div>
+      <div class="hud__mission">
+        <span class="eyebrow pd-eyebrow">MISIÓN PRINCIPAL</span>
+        <strong>Recuperar el control de mi vida</strong>
+      </div>
+    </header>
+
+    <main>
+      <section class="map-section" aria-labelledby="map-title">
+        <div class="section-heading">
+          <p class="eyebrow pd-eyebrow">CARTOGRAFÍA INTERIOR</p>
+          <h2 id="map-title">Territorios del despertar</h2>
+          <p>Selecciona un territorio para examinarlo.</p>
+        </div>
+
+        <div class="game-map" id="game-map">
+          <div class="map-field" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <svg class="map-connections" aria-hidden="true" preserveAspectRatio="none">
+            <g id="connection-lines"></g>
+          </svg>
+
+          <button class="sanctuary" type="button" data-entity-id="sanctuary" aria-label="Abrir Santuario del Dragón">
+            <span class="sanctuary__halo pd-motion--breathe" aria-hidden="true"></span>
+            <span class="sanctuary__mark" aria-hidden="true">◆</span>
+            <span class="sanctuary__label">SANTUARIO<br>DEL DRAGÓN</span>
+            <span class="sanctuary__sub">NÚCLEO DEL MAPA</span>
+          </button>
+
+          <div class="region-layer" id="region-layer" role="group" aria-label="Regiones del mapa"></div>
+
+          <button class="boss-node pd-boss" type="button" data-entity-id="boss" aria-label="Abrir Jefe del nivel: El Piloto Automático">
+            <span class="boss-node__seal" aria-hidden="true"></span>
+            <span class="boss-node__eyebrow">JEFE DEL NIVEL</span>
+            <strong>EL PILOTO AUTOMÁTICO</strong>
+          </button>
+        </div>
+
+        <div class="map-legend" aria-label="Leyenda de estados">
+          <span><i class="legend-dot legend-dot--active"></i> Activa</span>
+          <span><i class="legend-dot legend-dot--future"></i> Región futura</span>
+          <span><i class="legend-dot legend-dot--consequence"></i> Consecuencia</span>
+        </div>
+
+        <blockquote class="central-quote pd-system-message">
+          <span class="central-quote__mark" aria-hidden="true">◆</span>
+          “No estás compitiendo contra otros jugadores. Estás construyendo un hombre en el que puedas confiar.”
+        </blockquote>
+      </section>
+    </main>
+
+    <footer class="map-footer">
+      <span>PROTOTIPO — SPRINT 2</span>
+      <span>OCHO REGIONES · UN NÚCLEO</span>
+    </footer>
+
+    <div class="dialog-backdrop" id="dialog-backdrop" hidden>
+      <section class="region-dialog pd-panel" id="region-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-description">
+        <button class="dialog-close" type="button" aria-label="Cerrar panel">
+          <span aria-hidden="true">×</span>
+        </button>
+        <p class="dialog-kicker" id="dialog-category"></p>
+        <h2 id="dialog-title"></h2>
+        <span class="dialog-state" id="dialog-state"></span>
+        <p class="dialog-description" id="dialog-description"></p>
+        <p class="dialog-narrative" id="dialog-narrative"></p>
+        <button class="dialog-action pd-button" id="dialog-action" type="button"></button>
+      </section>
+    </div>
+
+    <script type="module" src="../js/mapa.js"></script>
+  </body>
+</html>

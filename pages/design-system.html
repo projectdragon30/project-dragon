@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Design System oficial de PROJECT DRAGON.">
+    <title>Design System | PROJECT DRAGON</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="../css/tokens.css">
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/design-system.css">
+  </head>
+  <body class="ds-page">
+    <header class="ds-header pd-hud">
+      <div>
+        <p class="pd-eyebrow">PROJECT DRAGON</p>
+        <h1>Design System</h1>
+      </div>
+      <a class="pd-button pd-button--quiet" href="./mapa.html">Mapa del juego</a>
+    </header>
+
+    <main class="ds-main">
+      <section class="ds-intro">
+        <p class="pd-eyebrow">SISTEMA OFICIAL</p>
+        <h2>Lenguaje visual</h2>
+        <p>Tokens y componentes reutilizables del escenario aprobado.</p>
+      </section>
+
+      <section class="ds-section" aria-labelledby="colors-title">
+        <div class="ds-section__heading">
+          <span>01</span>
+          <h2 id="colors-title">Paleta oficial</h2>
+        </div>
+        <div class="ds-swatches">
+          <article class="ds-swatch" style="--swatch: var(--color-bg)"><i></i><strong>Fondo</strong><code>--color-bg</code></article>
+          <article class="ds-swatch" style="--swatch: var(--color-surface-raised)"><i></i><strong>Superficie</strong><code>--color-surface-raised</code></article>
+          <article class="ds-swatch" style="--swatch: var(--color-text)"><i></i><strong>Texto</strong><code>--color-text</code></article>
+          <article class="ds-swatch" style="--swatch: var(--color-accent)"><i></i><strong>Acento</strong><code>--color-accent</code></article>
+          <article class="ds-swatch" style="--swatch: var(--color-active)"><i></i><strong>Activa</strong><code>--color-active</code></article>
+          <article class="ds-swatch" style="--swatch: var(--color-future)"><i></i><strong>Futura</strong><code>--color-future</code></article>
+          <article class="ds-swatch" style="--swatch: var(--color-consequence)"><i></i><strong>Consecuencia</strong><code>--color-consequence</code></article>
+          <article class="ds-swatch" style="--swatch: var(--color-danger)"><i></i><strong>Amenaza</strong><code>--color-danger</code></article>
+        </div>
+      </section>
+
+      <section class="ds-section" aria-labelledby="type-title">
+        <div class="ds-section__heading">
+          <span>02</span>
+          <h2 id="type-title">Tipografía</h2>
+        </div>
+        <div class="ds-type-grid">
+          <div class="ds-type-display">
+            <p class="pd-eyebrow">Display · Georgia</p>
+            <p>PROJECT DRAGON</p>
+          </div>
+          <div class="ds-type-body">
+            <p class="pd-eyebrow">Interfaz · Segoe UI</p>
+            <p>Recuperar el control de mi vida</p>
+          </div>
+          <div class="ds-type-scale" aria-label="Escala tipográfica">
+            <span style="font-size:var(--text-xs)">XS · Estado</span>
+            <span style="font-size:var(--text-sm)">SM · Etiqueta</span>
+            <span style="font-size:var(--text-base)">Base · Interfaz</span>
+            <span style="font-size:var(--text-xl)">XL · Región</span>
+            <span style="font-size:var(--text-3xl)">3XL · Escenario</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="ds-section" aria-labelledby="space-title">
+        <div class="ds-section__heading">
+          <span>03</span>
+          <h2 id="space-title">Espaciado</h2>
+        </div>
+        <div class="ds-spacing" aria-label="Escala de espaciado">
+          <div><i style="width:var(--space-1)"></i><code>1 · 4px</code></div>
+          <div><i style="width:var(--space-2)"></i><code>2 · 8px</code></div>
+          <div><i style="width:var(--space-3)"></i><code>3 · 12px</code></div>
+          <div><i style="width:var(--space-4)"></i><code>4 · 16px</code></div>
+          <div><i style="width:var(--space-5)"></i><code>5 · 24px</code></div>
+          <div><i style="width:var(--space-6)"></i><code>6 · 32px</code></div>
+          <div><i style="width:var(--space-7)"></i><code>7 · 48px</code></div>
+          <div><i style="width:var(--space-8)"></i><code>8 · 64px</code></div>
+        </div>
+      </section>
+
+      <section class="ds-section" aria-labelledby="controls-title">
+        <div class="ds-section__heading">
+          <span>04</span>
+          <h2 id="controls-title">Botones y estados</h2>
+        </div>
+        <div class="ds-row">
+          <button class="pd-button" type="button">Explorar Vida</button>
+          <button class="pd-button pd-button--quiet" type="button">Cerrar panel</button>
+        </div>
+        <div class="ds-row">
+          <span class="pd-state">Activa</span>
+          <span class="pd-state pd-state--future">Región futura</span>
+          <span class="pd-state pd-state--consequence">Consecuencia</span>
+          <span class="pd-state pd-state--danger">Jefe del nivel</span>
+        </div>
+      </section>
+
+      <section class="ds-section" aria-labelledby="nodes-title">
+        <div class="ds-section__heading">
+          <span>05</span>
+          <h2 id="nodes-title">Nodos</h2>
+        </div>
+        <div class="ds-node-grid">
+          <button class="ds-node pd-node" type="button"><small>01</small><strong>Vida</strong><span>Activa</span></button>
+          <button class="ds-node pd-node pd-node--future" type="button"><small>06</small><strong>Relaciones</strong><span>Región futura</span></button>
+          <button class="ds-node pd-node pd-node--consequence" type="button"><small>08</small><strong>Legado</strong><span>Consecuencia</span></button>
+          <button class="ds-boss pd-boss" type="button"><span>JEFE DEL NIVEL</span><strong>EL PILOTO AUTOMÁTICO</strong></button>
+        </div>
+      </section>
+
+      <section class="ds-section" aria-labelledby="hud-title">
+        <div class="ds-section__heading">
+          <span>06</span>
+          <h2 id="hud-title">HUD</h2>
+        </div>
+        <div class="ds-hud-demo pd-hud">
+          <div><p class="pd-eyebrow">MAPA DEL JUEGO</p><strong>PROJECT DRAGON</strong></div>
+          <span>NIVEL I — DESPERTAR</span>
+          <div><p class="pd-eyebrow">MISIÓN PRINCIPAL</p><strong>Recuperar el control de mi vida</strong></div>
+        </div>
+      </section>
+
+      <section class="ds-section ds-two-column" aria-label="Paneles y mensajes">
+        <div>
+          <div class="ds-section__heading">
+            <span>07</span>
+            <h2>Panel</h2>
+          </div>
+          <article class="ds-panel pd-panel">
+            <p class="pd-eyebrow">Región vital</p>
+            <h3>Vida</h3>
+            <span class="pd-state">Activa</span>
+            <p>El territorio del cuidado físico y la energía cotidiana.</p>
+            <button class="pd-button" type="button">Explorar Vida</button>
+          </article>
+        </div>
+        <div>
+          <div class="ds-section__heading">
+            <span>08</span>
+            <h2>Mensaje del sistema</h2>
+          </div>
+          <blockquote class="ds-message pd-system-message">
+            “No estás compitiendo contra otros jugadores. Estás construyendo un hombre en el que puedas confiar.”
+          </blockquote>
+        </div>
+      </section>
+
+      <section class="ds-section" aria-labelledby="motion-title">
+        <div class="ds-section__heading">
+          <span>09</span>
+          <h2 id="motion-title">Movimiento</h2>
+        </div>
+        <div class="ds-motion-grid">
+          <div><i class="pd-motion--breathe"></i><span>Respiración</span></div>
+          <div><i class="pd-motion--drift"></i><span>Deriva</span></div>
+          <div><i class="pd-motion--pulse"></i><span>Pulso</span></div>
+        </div>
+        <p class="ds-note">Las animaciones se detienen automáticamente cuando el sistema solicita movimiento reducido.</p>
+      </section>
+    </main>
+
+    <footer class="ds-footer">PROJECT DRAGON · DESIGN SYSTEM</footer>
+  </body>
+</html>
