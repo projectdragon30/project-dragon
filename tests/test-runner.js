@@ -17,6 +17,11 @@ import "./condition.test.js";
 import "./restoration.test.js";
 import "./affinities.test.js";
 import "./legacy-contributions.test.js";
+import "./storage-adapters.test.js";
+import "./persistence.test.js";
+import "./migrations.test.js";
+import "./import-export.test.js";
+import "./backups.test.js";
 import { runTests } from "./test-utils.js";
 
 const summary = await runTests();

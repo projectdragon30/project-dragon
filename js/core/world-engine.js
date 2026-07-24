@@ -3,6 +3,7 @@ import { assertValidWorldState } from "../validators/world-state-validator.js";
 import { CommandHandler } from "./command-handler.js";
 import { EventService } from "./event-service.js";
 import { cloneSerializable, createStateSnapshot } from "./state-snapshot.js";
+import { createInitialWorldState } from "./state-factory.js";
 
 function rejected(commandId, errors) {
   return {
@@ -45,6 +46,14 @@ export class WorldEngine {
     this.#state = createStateSnapshot(initialState);
     this.commandHandler = options.commandHandler ?? new CommandHandler();
     this.eventService = options.eventService ?? new EventService({ clock: options.clock });
+    this.persistenceService = options.persistenceService ?? null;
+    this.stateFactory = options.stateFactory ?? createInitialWorldState;
+    this.autosave = {
+      enabled: false,
+      saveAfterSuccessfulCommand: true,
+      excludedCommandTypes: [],
+      ...(options.autosave ?? {}),
+    };
   }
 
   dispatch(command) {
@@ -78,13 +87,19 @@ export class WorldEngine {
     const publicEvents = cloneSerializable(events);
     this.#notify(snapshot, publicEvents);
 
-    return {
+    const result = {
       success: true,
       commandId: command.id,
       data: cloneSerializable(handled.data),
       events: publicEvents,
       errors: [],
     };
+    if (this.persistenceService && this.autosave.enabled && this.autosave.saveAfterSuccessfulCommand &&
+        !this.autosave.excludedCommandTypes.includes(command.type)) {
+      const autosaveResult = this.persistenceService.save(this.getSnapshot());
+      if (!autosaveResult.ok) result.autosaveError = cloneSerializable(autosaveResult.error);
+    }
+    return result;
   }
 
   getSnapshot() {
@@ -94,6 +109,52 @@ export class WorldEngine {
   select(selector, ...args) {
     if (typeof selector !== "function") throw new TypeError("select requiere una función selector.");
     return cloneSerializable(selector(this.getSnapshot(), ...cloneSerializable(args)));
+  }
+
+  persistenceUnavailable() {
+    return { ok: false, value: null, error: { code: "PERSISTENCE_NOT_CONFIGURED", message: "PersistenceService no fue configurado.", details: {} } };
+  }
+
+  save() {
+    return this.persistenceService ? this.persistenceService.save(this.getSnapshot()) : this.persistenceUnavailable();
+  }
+
+  load() {
+    if (!this.persistenceService) return this.persistenceUnavailable();
+    const loaded = this.persistenceService.load();
+    if (!loaded.ok) return loaded;
+    try { assertValidWorldState(loaded.value); } catch (error) {
+      return { ok: false, value: null, error: { code: "INVALID_WORLD_STATE", message: error.message, details: {} } };
+    }
+    this.#state = createStateSnapshot(loaded.value);
+    return { ok: true, value: this.getSnapshot(), error: null };
+  }
+
+  hasSave() { return this.persistenceService ? { ok: true, value: this.persistenceService.hasSave(), error: null } : this.persistenceUnavailable(); }
+  exportSave() { return this.persistenceService ? this.persistenceService.exportSave() : this.persistenceUnavailable(); }
+  importSave(serialized) {
+    if (!this.persistenceService) return this.persistenceUnavailable();
+    const imported = this.persistenceService.importSave(serialized);
+    if (!imported.ok) return imported;
+    this.#state = createStateSnapshot(imported.value);
+    return { ok: true, value: this.getSnapshot(), error: null };
+  }
+  createBackup() { return this.persistenceService ? this.persistenceService.createBackup() : this.persistenceUnavailable(); }
+  restoreBackup() {
+    if (!this.persistenceService) return this.persistenceUnavailable();
+    const restored = this.persistenceService.restoreBackup();
+    if (!restored.ok) return restored;
+    this.#state = createStateSnapshot(restored.value);
+    return { ok: true, value: this.getSnapshot(), error: null };
+  }
+  resetWorld(options = {}) {
+    if (options.confirmation !== "RESET_PROJECT_DRAGON") {
+      return { ok: false, value: null, error: { code: "RESET_CONFIRMATION_REQUIRED", message: "Confirmación de reset incorrecta o ausente.", details: {} } };
+    }
+    const next = this.stateFactory({ createdAt: this.eventService.clock() });
+    assertValidWorldState(next);
+    this.#state = createStateSnapshot(next);
+    return { ok: true, value: this.getSnapshot(), error: null };
   }
 
   subscribe(listener) {
