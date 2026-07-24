@@ -16,6 +16,8 @@ import {
   RetryPolicy,
   isEnumValue,
 } from "../constants/game-enums.js";
+import { validateEvidence, validateObjectiveValue } from "../services/mission-progress-service.js";
+import { deriveDomainTotalXP, deriveTierXP } from "../services/xp-service.js";
 
 const REQUIRED_ROOT_KEYS = Object.freeze([
   "schemaVersion",
@@ -219,6 +221,11 @@ export function validateWorldState(state) {
     validateEnum(errors, DomainProgressionState, domain.progressionState, `${path}.progressionState`);
     validateEnum(errors, DomainConditionState, domain.conditionState, `${path}.conditionState`);
     validateEnum(errors, MasteryStatus, domain.masteryStatus, `${path}.masteryStatus`);
+    if (!Number.isFinite(domain.totalXP) || domain.totalXP < 0) {
+      addError(errors, "INVALID_XP_CACHE", `${path}.totalXP`, "totalXP debe ser un número no negativo.");
+    } else if (domain.totalXP !== deriveDomainTotalXP(state, domain.id)) {
+      addError(errors, "INVALID_XP_CACHE", `${path}.totalXP`, "totalXP no coincide con xpTransactions.");
+    }
 
     if (domain.id === "legado" && domain.progressionState !== DomainProgressionState.CONSEQUENCE) {
       addError(errors, "INVALID_LEGACY_STATE", `${path}.progressionState`, "Legado debe usar CONSEQUENCE.");
@@ -226,6 +233,7 @@ export function validateWorldState(state) {
   });
 
   state.domainTiers.forEach((tier, index) => {
+    const path = `$.domainTiers[${index}]`;
     if (!domainIds.has(tier.domainId)) {
       addError(
         errors,
@@ -234,6 +242,19 @@ export function validateWorldState(state) {
         `El Dominio ${tier.domainId} no existe.`,
         tier.domainId,
       );
+    }
+    if (!Number.isFinite(tier.tierXP) || tier.tierXP < 0 || tier.tierXP !== deriveTierXP(state, tier.id)) {
+      addError(errors, "INVALID_XP_CACHE", `${path}.tierXP`, "tierXP no coincide con xpTransactions.");
+    }
+    const config = tier.progressConfig;
+    if (!config || typeof config !== "object" || Array.isArray(config)) {
+      addError(errors, "INVALID_PROGRESS_CONFIG", `${path}.progressConfig`, "progressConfig debe ser un objeto.");
+    } else {
+      const weights = Object.values(config);
+      if (weights.some((weight) => !Number.isFinite(weight) || weight < 0) ||
+          weights.reduce((sum, weight) => sum + weight, 0) !== 100) {
+        addError(errors, "INVALID_PROGRESS_CONFIG", `${path}.progressConfig`, "Los pesos de progressConfig deben sumar 100.");
+      }
     }
   });
 
@@ -315,6 +336,18 @@ export function validateWorldState(state) {
         addError(errors, "INVALID_RESPONSE_FORMAT", `${objectivePath}.responseFormat`, "La misión demo requiere evidencia de texto.");
       }
     });
+    const rewardIds = validateUniqueIds(errors, mission.rewards ?? [], `${path}.rewards`);
+    if (rewardIds.size !== (mission.rewards ?? []).length) return;
+    (mission.rewards ?? []).forEach((reward, rewardIndex) => {
+      const rewardPath = `${path}.rewards[${rewardIndex}]`;
+      if (reward.rewardType !== "XP" || !Number.isFinite(reward.amount) || reward.amount <= 0) {
+        addError(errors, "INVALID_REWARD", rewardPath, "La recompensa XP debe tener una cantidad positiva.");
+      }
+      const targetTier = state.domainTiers.find((tier) => tier.id === reward.targetId);
+      if (!targetTier || targetTier.domainId !== reward.domainId) {
+        addError(errors, "INVALID_REWARD", `${rewardPath}.targetId`, "La recompensa debe referenciar un Tier de su Dominio.");
+      }
+    });
   });
 
   state.missionInstances.forEach((mission, index) => {
@@ -325,6 +358,72 @@ export function validateWorldState(state) {
     }
     if (mission.startedAt) validateIsoDate(errors, mission.startedAt, `${path}.startedAt`);
     if (mission.closedAt) validateIsoDate(errors, mission.closedAt, `${path}.closedAt`);
+    if (mission.completedAt) validateIsoDate(errors, mission.completedAt, `${path}.completedAt`);
+    if (!mission.objectiveProgress || typeof mission.objectiveProgress !== "object" || Array.isArray(mission.objectiveProgress)) {
+      addError(errors, "INVALID_OBJECTIVE_VALUE", `${path}.objectiveProgress`, "objectiveProgress debe ser un objeto.");
+    }
+    if (!Array.isArray(mission.evidenceEntries)) {
+      addError(errors, "INVALID_EVIDENCE", `${path}.evidenceEntries`, "evidenceEntries debe ser un arreglo.");
+    } else {
+      validateUniqueIds(errors, mission.evidenceEntries, `${path}.evidenceEntries`);
+      const definition = state.missionDefinitions.find((item) => item.id === mission.definitionId);
+      mission.evidenceEntries.forEach((entry, entryIndex) => {
+        const entryPath = `${path}.evidenceEntries[${entryIndex}]`;
+        if (!definition?.objectives.some((objective) => objective.id === entry.objectiveId)) {
+          addError(errors, "OBJECTIVE_NOT_FOUND", `${entryPath}.objectiveId`, "La evidencia referencia un objetivo inexistente.");
+        }
+        const objective = definition?.objectives.find((item) => item.id === entry.objectiveId);
+        if (objective && !validateEvidence(objective, entry.evidence)) {
+          addError(errors, "INVALID_EVIDENCE", `${entryPath}.evidence`, "La evidencia no satisface la política del objetivo.");
+        }
+        validateEnum(errors, EvidenceLevel, entry.evidence?.level, `${entryPath}.evidence.level`);
+        validateIsoDate(errors, entry.submittedAt, `${entryPath}.submittedAt`);
+      });
+      Object.entries(mission.objectiveProgress ?? {}).forEach(([objectiveId, value]) => {
+        const objective = definition?.objectives.find((item) => item.id === objectiveId);
+        if (!objective || !validateObjectiveValue(objective, value)) {
+          addError(errors, "INVALID_OBJECTIVE_VALUE", `${path}.objectiveProgress.${objectiveId}`, "Progreso de objetivo inválido.");
+        }
+      });
+    }
+  });
+
+  const rewardIds = validateUniqueIds(errors, state.rewardTransactions, "$.rewardTransactions");
+  state.rewardTransactions.forEach((transaction, index) => {
+    const path = `$.rewardTransactions[${index}]`;
+    if (!transaction.commandId || !transaction.sourceId || !transaction.rewardDefinitionId ||
+        transaction.rewardType !== "XP" || !Number.isFinite(transaction.value) || transaction.value <= 0) {
+      addError(errors, "INVALID_REWARD", path, "Transacción de recompensa incompleta o inválida.");
+    }
+    if (!Array.isArray(transaction.xpTransactionIds)) {
+      addError(errors, "INVALID_REWARD", `${path}.xpTransactionIds`, "xpTransactionIds debe ser un arreglo.");
+    }
+    validateIsoDate(errors, transaction.createdAt, `${path}.createdAt`);
+  });
+  if (rewardIds.size !== state.rewardTransactions.length) {
+    addError(errors, "INVALID_REWARD", "$.rewardTransactions", "Las recompensas no pueden duplicarse.");
+  }
+
+  const xpIds = validateUniqueIds(errors, state.xpTransactions, "$.xpTransactions");
+  state.xpTransactions.forEach((transaction, index) => {
+    const path = `$.xpTransactions[${index}]`;
+    const tier = state.domainTiers.find((candidate) => candidate.id === transaction.domainTierId);
+    const reward = state.rewardTransactions.find((candidate) => candidate.id === transaction.rewardTransactionId);
+    if (!Number.isFinite(transaction.amount) || transaction.amount <= 0 || !domainIds.has(transaction.domainId) ||
+        !tier || tier.domainId !== transaction.domainId || !reward || !reward.xpTransactionIds.includes(transaction.id)) {
+      addError(errors, "INVALID_XP_TRANSACTION", path, "Transacción XP inválida o sin recompensa auditable.");
+    }
+    validateIsoDate(errors, transaction.createdAt, `${path}.createdAt`);
+  });
+  if (xpIds.size !== state.xpTransactions.length) {
+    addError(errors, "INVALID_XP_TRANSACTION", "$.xpTransactions", "Las transacciones XP no pueden duplicarse.");
+  }
+  state.rewardTransactions.forEach((reward, rewardIndex) => {
+    reward.xpTransactionIds?.forEach((id, xpIndex) => {
+      if (!state.xpTransactions.some((transaction) => transaction.id === id && transaction.rewardTransactionId === reward.id)) {
+        addError(errors, "INVALID_REFERENCE", `$.rewardTransactions[${rewardIndex}].xpTransactionIds[${xpIndex}]`, "Referencia XP inválida.");
+      }
+    });
   });
 
   const missionDefinitionIds = new Set(state.missionDefinitions.map((definition) => definition.id));

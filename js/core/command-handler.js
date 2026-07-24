@@ -4,8 +4,17 @@ import {
   DomainProgressionState,
   EventType,
   MissionStatus,
+  ObjectiveType,
   isEnumValue,
 } from "../constants/game-enums.js";
+import {
+  calculateMissionProgress,
+  getMissionCompletionEligibility,
+  validateEvidence,
+  validateObjectiveValue,
+} from "../services/mission-progress-service.js";
+import { processMissionRewards } from "../services/reward-service.js";
+import { calculateDomainTierProgress } from "../services/domain-progress-service.js";
 import {
   validateDomainActivationTransition,
   validateDomainAvailabilityTransition,
@@ -19,8 +28,8 @@ import {
   validateMissionStart,
 } from "../validators/mission-transition-validator.js";
 
-function success(data, event) {
-  return { success: true, data, event };
+function success(data, eventOrEvents) {
+  return { success: true, data, events: Array.isArray(eventOrEvents) ? eventOrEvents : [eventOrEvents] };
 }
 
 function failure(code, message, details = {}) {
@@ -49,6 +58,8 @@ export class CommandHandler {
       [CommandType.FAIL_MISSION]: () => this.closeMission(state, command, MissionStatus.FAILED, EventType.MISSION_FAILED, timestamp),
       [CommandType.ABANDON_MISSION]: () => this.closeMission(state, command, MissionStatus.ABANDONED, EventType.MISSION_ABANDONED, timestamp),
       [CommandType.EXPIRE_MISSION]: () => this.closeMission(state, command, MissionStatus.EXPIRED, EventType.MISSION_EXPIRED, timestamp),
+      [CommandType.UPDATE_OBJECTIVE]: () => this.updateObjective(state, command),
+      [CommandType.SUBMIT_EVIDENCE]: () => this.submitEvidence(state, command, timestamp),
     };
 
     if (!isEnumValue(CommandType, command.type) || !handlers[command.type]) {
@@ -185,6 +196,9 @@ export class CommandHandler {
       attemptNumber,
       startedAt: timestamp,
       closedAt: null,
+      completedAt: null,
+      objectiveProgress: {},
+      evidenceEntries: [],
     };
     state.missionInstances.push(instance);
     state.system.missionAvailability[lookup.definition.id] = MissionStatus.ACTIVE;
@@ -206,12 +220,127 @@ export class CommandHandler {
     }
     const validation = validateMissionClosure(instance, targetStatus);
     if (!validation.valid) return validationFailure(validation);
+    const definition = state.missionDefinitions.find((candidate) => candidate.id === instance.definitionId);
+    if (targetStatus === MissionStatus.COMPLETED) {
+      const eligibility = getMissionCompletionEligibility(definition, instance);
+      if (!eligibility.eligible) {
+        return failure("MISSION_REQUIREMENTS_NOT_MET", "La misión conserva requisitos obligatorios pendientes.", {
+          missionInstanceId: instance.id,
+          pendingObjectiveIds: eligibility.pendingObjectiveIds,
+        });
+      }
+    }
     instance.status = targetStatus;
     instance.closedAt = timestamp;
+    if (targetStatus === MissionStatus.COMPLETED) instance.completedAt = timestamp;
     state.system.missionAvailability[instance.definitionId] = targetStatus;
-    return success(
-      { missionInstanceId: instance.id, status: targetStatus },
-      { type: eventType, payload: { missionInstanceId: instance.id, missionDefinitionId: instance.definitionId } },
-    );
+    const events = [{ type: eventType, payload: { missionInstanceId: instance.id, missionDefinitionId: instance.definitionId } }];
+    if (targetStatus === MissionStatus.COMPLETED) {
+      const rewards = processMissionRewards(state, definition, instance, command, timestamp);
+      if (!rewards.success) return failure(rewards.error.code, rewards.error.message);
+      events.push(...rewards.events);
+      events.push({
+        type: EventType.DOMAIN_PROGRESS_UPDATED,
+        payload: {
+          domainTierId: definition.primaryDomainTierId,
+          progress: calculateDomainTierProgress(state, definition.primaryDomainTierId),
+        },
+      });
+    }
+    return success({ missionInstanceId: instance.id, status: targetStatus }, events);
+  }
+
+  findActiveMissionContext(state, payload) {
+    if (!requireText(payload, "missionInstanceId")) {
+      return { error: failure("INVALID_PAYLOAD", "payload.missionInstanceId es obligatorio.") };
+    }
+    const instance = state.missionInstances.find((candidate) => candidate.id === payload.missionInstanceId);
+    if (!instance) {
+      return { error: failure("MISSION_INSTANCE_NOT_FOUND", `Instancia no encontrada: ${payload.missionInstanceId}.`) };
+    }
+    if (instance.status !== MissionStatus.ACTIVE) {
+      return { error: failure("MISSION_NOT_ACTIVE", "Solo una instancia ACTIVE admite progreso.", { status: instance.status }) };
+    }
+    const definition = state.missionDefinitions.find((candidate) => candidate.id === instance.definitionId);
+    const objective = definition.objectives.find((candidate) => candidate.id === payload.objectiveId);
+    if (!objective) {
+      return { error: failure("OBJECTIVE_NOT_FOUND", `Objetivo no encontrado: ${String(payload.objectiveId)}.`) };
+    }
+    return { instance, definition, objective };
+  }
+
+  updateObjective(state, command) {
+    const context = this.findActiveMissionContext(state, command.payload);
+    if (context.error) return context.error;
+    if (context.objective.type === ObjectiveType.EVIDENCE || !validateObjectiveValue(context.objective, command.payload.value)) {
+      return failure("INVALID_OBJECTIVE_VALUE", "El valor no es compatible con el tipo de objetivo.", {
+        objectiveId: context.objective.id,
+        objectiveType: context.objective.type,
+      });
+    }
+    const previousProgress = calculateMissionProgress(context.definition, context.instance);
+    context.instance.objectiveProgress[context.objective.id] = command.payload.value;
+    const progress = calculateMissionProgress(context.definition, context.instance);
+    const events = [{
+      type: EventType.OBJECTIVE_UPDATED,
+      payload: {
+        missionInstanceId: context.instance.id,
+        objectiveId: context.objective.id,
+        value: command.payload.value,
+      },
+    }];
+    if (progress !== previousProgress) {
+      events.push({
+        type: EventType.MISSION_PROGRESS_UPDATED,
+        payload: { missionInstanceId: context.instance.id, progress },
+      });
+    }
+    return success({ missionInstanceId: context.instance.id, objectiveId: context.objective.id, progress }, events);
+  }
+
+  submitEvidence(state, command, timestamp) {
+    const context = this.findActiveMissionContext(state, command.payload);
+    if (context.error) return context.error;
+    if (![ObjectiveType.EVIDENCE, ObjectiveType.DECISION].includes(context.objective.type)) {
+      return failure("EVIDENCE_REQUIRED", "El objetivo no admite evidencia.", { objectiveId: context.objective.id });
+    }
+    if (!validateEvidence(context.objective, command.payload.evidence)) {
+      return failure("INVALID_EVIDENCE", "La evidencia no satisface la política del objetivo.", {
+        objectiveId: context.objective.id,
+      });
+    }
+    const previousProgress = calculateMissionProgress(context.definition, context.instance);
+    const entry = {
+      id: `evidence-${context.instance.id}-${String(context.instance.evidenceEntries.length + 1).padStart(4, "0")}`,
+      missionInstanceId: context.instance.id,
+      objectiveId: context.objective.id,
+      evidence: {
+        level: command.payload.evidence.level,
+        kind: command.payload.evidence.kind,
+        value: command.payload.evidence.value,
+      },
+      submittedAt: timestamp,
+      commandId: command.id,
+    };
+    context.instance.evidenceEntries.push(entry);
+    if (context.objective.type === ObjectiveType.DECISION) {
+      context.instance.objectiveProgress[context.objective.id] = command.payload.evidence.value;
+    }
+    const progress = calculateMissionProgress(context.definition, context.instance);
+    const events = [{
+      type: EventType.EVIDENCE_SUBMITTED,
+      payload: {
+        missionInstanceId: context.instance.id,
+        objectiveId: context.objective.id,
+        evidenceEntryId: entry.id,
+      },
+    }];
+    if (progress !== previousProgress) {
+      events.push({
+        type: EventType.MISSION_PROGRESS_UPDATED,
+        payload: { missionInstanceId: context.instance.id, progress },
+      });
+    }
+    return success({ missionInstanceId: context.instance.id, objectiveId: context.objective.id, progress }, events);
   }
 }

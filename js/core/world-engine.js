@@ -57,8 +57,9 @@ export class WorldEngine {
     if (!handled.success) return rejected(command.id, handled.errors);
 
     candidate.metadata.updatedAt = transitionTimestamp;
-    const event = this.eventService.createEvent(candidate, handled.event, command, transitionTimestamp);
-    candidate.eventLog.push(event);
+    const events = handled.events.map((eventInput) =>
+      this.eventService.createEvent(candidate, eventInput, command, transitionTimestamp));
+    candidate.eventLog.push(...events);
 
     try {
       assertValidWorldState(candidate);
@@ -74,7 +75,7 @@ export class WorldEngine {
 
     this.#state = candidate;
     const snapshot = this.getSnapshot();
-    const publicEvents = cloneSerializable([event]);
+    const publicEvents = cloneSerializable(events);
     this.#notify(snapshot, publicEvents);
 
     return {
@@ -88,6 +89,11 @@ export class WorldEngine {
 
   getSnapshot() {
     return createStateSnapshot(this.#state);
+  }
+
+  select(selector, ...args) {
+    if (typeof selector !== "function") throw new TypeError("select requiere una función selector.");
+    return cloneSerializable(selector(this.getSnapshot(), ...cloneSerializable(args)));
   }
 
   subscribe(listener) {

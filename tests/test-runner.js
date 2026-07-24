@@ -4,6 +4,11 @@ import "./domain-transitions.test.js";
 import "./mission-transitions.test.js";
 import "./events.test.js";
 import "./world-engine.test.js";
+import "./mission-progress.test.js";
+import "./rewards.test.js";
+import "./xp.test.js";
+import "./domain-progress.test.js";
+import "./selectors.test.js";
 import { runTests } from "./test-utils.js";
 
 const summary = await runTests();

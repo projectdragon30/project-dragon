@@ -124,6 +124,8 @@ export const CommandType = createEnum([
   "FAIL_MISSION",
   "ABANDON_MISSION",
   "EXPIRE_MISSION",
+  "UPDATE_OBJECTIVE",
+  "SUBMIT_EVIDENCE",
 ]);
 
 export const EventType = createEnum([
@@ -141,6 +143,12 @@ export const EventType = createEnum([
   "MISSION_FAILED",
   "MISSION_ABANDONED",
   "MISSION_EXPIRED",
+  "OBJECTIVE_UPDATED",
+  "EVIDENCE_SUBMITTED",
+  "MISSION_PROGRESS_UPDATED",
+  "MISSION_REWARD_GRANTED",
+  "XP_GRANTED",
+  "DOMAIN_PROGRESS_UPDATED",
 ]);
 
 export const EngineErrorCode = createEnum([
@@ -155,6 +163,15 @@ export const EngineErrorCode = createEnum([
   "MISSION_NOT_ACTIVE",
   "MISSION_ALREADY_CLOSED",
   "INVALID_PAYLOAD",
+  "OBJECTIVE_NOT_FOUND",
+  "INVALID_OBJECTIVE_VALUE",
+  "EVIDENCE_REQUIRED",
+  "INVALID_EVIDENCE",
+  "MISSION_REQUIREMENTS_NOT_MET",
+  "REWARD_ALREADY_GRANTED",
+  "INVALID_REWARD",
+  "INVALID_XP_TRANSACTION",
+  "DOMAIN_TIER_NOT_FOUND",
 ]);
 
 export const GameEnums = Object.freeze({

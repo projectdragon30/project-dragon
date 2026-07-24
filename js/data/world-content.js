@@ -40,6 +40,7 @@ export const DOMAINS = Object.freeze(
       progressionState,
       conditionState: DomainConditionState.STABLE,
       masteryStatus: MasteryStatus.NOT_ELIGIBLE,
+      totalXP: 0,
     }),
   ),
 );
@@ -50,6 +51,13 @@ export const DOMAIN_TIERS = Object.freeze(
       id: `${domainId}-tier-1`,
       domainId,
       order: 1,
+      tierXP: 0,
+      progressConfig: Object.freeze({
+        coreMissions: 70,
+        masteryMissions: 20,
+        milestones: 5,
+        bossContribution: 5,
+      }),
     }),
   ),
 );
@@ -116,6 +124,20 @@ export const MISSION_DEFINITIONS = Object.freeze([
         type: ObjectiveType.DECISION,
         evidenceLevel: EvidenceLevel.SELF_REPORTED,
         responseFormat: "TEXT",
+      }),
+    ]),
+    rewards: Object.freeze([
+      Object.freeze({
+        id: "demo-disciplina-xp-10",
+        rewardType: "XP",
+        targetType: "DOMAIN_TIER",
+        targetId: "disciplina-tier-1",
+        domainId: "disciplina",
+        amount: 10,
+        metadata: Object.freeze({
+          contentStatus: "DEMO",
+          notes: "PLACEHOLDER: valor provisional de demostración para validar el motor de XP.",
+        }),
       }),
     ]),
   }),

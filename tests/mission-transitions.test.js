@@ -33,6 +33,21 @@ function startMission(engine) {
   return engine.dispatch(command(CommandType.START_MISSION, { missionDefinitionId: definitionId }));
 }
 
+function satisfyDemoMission(engine, missionInstanceId) {
+  for (const objectiveId of ["identificar-disparador", "identificar-conducta-automatica", "identificar-consecuencia"]) {
+    engine.dispatch(command(CommandType.SUBMIT_EVIDENCE, {
+      missionInstanceId,
+      objectiveId,
+      evidence: { level: "SELF_REPORTED", kind: "TEXT", value: `evidencia ${objectiveId}` },
+    }));
+  }
+  engine.dispatch(command(CommandType.UPDATE_OBJECTIVE, {
+    missionInstanceId,
+    objectiveId: "definir-respuesta-consciente",
+    value: "Respuesta consciente",
+  }));
+}
+
 test("una misión disponible puede iniciar una instancia ACTIVE", () => {
   const engine = createMissionEngine();
   const result = startMission(engine);
@@ -59,6 +74,7 @@ for (const [label, commandType, status, eventType] of [
   test(`una instancia ACTIVE puede ${label}`, () => {
     const engine = createMissionEngine();
     const started = startMission(engine);
+    if (commandType === CommandType.COMPLETE_MISSION) satisfyDemoMission(engine, started.data.missionInstanceId);
     const result = engine.dispatch(command(commandType, { missionInstanceId: started.data.missionInstanceId }));
     assert(result.success);
     equal(result.data.status, status);
@@ -69,6 +85,7 @@ for (const [label, commandType, status, eventType] of [
 test("una instancia completada no puede volver a cambiar", () => {
   const engine = createMissionEngine();
   const started = startMission(engine);
+  satisfyDemoMission(engine, started.data.missionInstanceId);
   engine.dispatch(command(CommandType.COMPLETE_MISSION, { missionInstanceId: started.data.missionInstanceId }));
   const result = engine.dispatch(command(CommandType.FAIL_MISSION, { missionInstanceId: started.data.missionInstanceId }));
   assert(!result.success);
@@ -82,13 +99,15 @@ test("el reintento no está implementado", () => {
   equal(result.errors[0].code, "INVALID_COMMAND");
 });
 
-test("COMPLETE_MISSION no concede XP ni recompensas", () => {
+test("COMPLETE_MISSION concede únicamente la recompensa XP DEMO declarada", () => {
   const engine = createMissionEngine();
   const started = startMission(engine);
+  satisfyDemoMission(engine, started.data.missionInstanceId);
   engine.dispatch(command(CommandType.COMPLETE_MISSION, { missionInstanceId: started.data.missionInstanceId }));
   const snapshot = engine.getSnapshot();
-  deepEqual(snapshot.xpTransactions, []);
-  deepEqual(snapshot.rewardTransactions, []);
+  equal(snapshot.xpTransactions.length, 1);
+  equal(snapshot.rewardTransactions.length, 1);
+  equal(snapshot.xpTransactions[0].amount, 10);
 });
 
 test("REVEAL_MISSION usa disponibilidad runtime sin mutar la definición", () => {
