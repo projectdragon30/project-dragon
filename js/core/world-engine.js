@@ -102,6 +102,10 @@ export class WorldEngine {
     return result;
   }
 
+  execute(command) {
+    return this.dispatch(command);
+  }
+
   getSnapshot() {
     return createStateSnapshot(this.#state);
   }

@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="../css/mapa.css">
   </head>
   <body>
+    <div class="app-loading" id="loading-state" role="status" aria-live="polite">Cargando partida…</div>
+    <div class="notification-center" id="notification-center" aria-label="Mensajes del sistema"></div>
     <div class="atmosphere" aria-hidden="true"></div>
 
     <header class="hud pd-hud">
@@ -88,9 +90,7 @@
         <p class="dialog-kicker" id="dialog-category"></p>
         <h2 id="dialog-title"></h2>
         <span class="dialog-state" id="dialog-state"></span>
-        <p class="dialog-description" id="dialog-description"></p>
-        <p class="dialog-narrative" id="dialog-narrative"></p>
-        <button class="dialog-action pd-button" id="dialog-action" type="button"></button>
+        <div id="dialog-content"></div>
       </section>
     </div>
 

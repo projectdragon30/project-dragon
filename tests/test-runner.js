@@ -22,6 +22,12 @@ import "./persistence.test.js";
 import "./migrations.test.js";
 import "./import-export.test.js";
 import "./backups.test.js";
+import "./view-models.test.js";
+import "./map-controller.test.js";
+import "./domain-panel-controller.test.js";
+import "./mission-controller.test.js";
+import "./bootstrap.test.js";
+import "./ui-integration.test.js";
 import { runTests } from "./test-utils.js";
 
 const summary = await runTests();
