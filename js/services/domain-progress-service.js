@@ -27,13 +27,26 @@ export function calculateDomainTierProgress(state, tierId) {
       state,
       definitions.filter((definition) => definition.criticality === MissionCriticality.MASTERY),
     ),
-    milestones: 0,
-    bossContribution: 0,
+    milestones: completionForItems(
+      state.milestones.filter((milestone) => milestone.domainTierId === tierId),
+      (milestone) => milestone.status === "COMPLETED",
+    ),
+    bossContribution: completionForItems(
+      state.bosses.filter((boss) =>
+        boss.requirementGroups?.some((group) =>
+          group.requirements?.some((requirement) => requirement.domainTierId === tierId))),
+      (boss) => boss.status === "DEFEATED",
+    ),
   };
   return clampProgress(Object.entries(tier.progressConfig).reduce(
     (sum, [category, weight]) => sum + (categories[category] ?? 0) * weight,
     0,
   ) / 100);
+}
+
+function completionForItems(items, predicate) {
+  if (items.length === 0) return 0;
+  return clampProgress(items.filter(predicate).length / items.length);
 }
 
 export function calculateDomainTierCompletion(state, tierId) {

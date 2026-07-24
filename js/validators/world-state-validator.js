@@ -3,6 +3,7 @@ import {
   BossStatus,
   DomainConditionState,
   DomainProgressionState,
+  DomainTierStatus,
   EvidenceLevel,
   EventType,
   MasteryStatus,
@@ -12,6 +13,7 @@ import {
   MissionScope,
   MissionStatus,
   MissionType,
+  MilestoneStatus,
   ObjectiveType,
   RetryPolicy,
   isEnumValue,
@@ -189,8 +191,9 @@ export function validateWorldState(state) {
   const domainIds = validateUniqueIds(errors, state.domains, "$.domains");
   const tierIds = validateUniqueIds(errors, state.domainTiers, "$.domainTiers");
   const bossIds = validateUniqueIds(errors, state.bosses, "$.bosses");
-  validateUniqueIds(errors, state.missionDefinitions, "$.missionDefinitions");
+  const missionDefinitionIds = validateUniqueIds(errors, state.missionDefinitions, "$.missionDefinitions");
   validateUniqueIds(errors, state.missionInstances, "$.missionInstances");
+  const milestoneIds = validateUniqueIds(errors, state.milestones, "$.milestones");
   validateGlobalEntityIds(errors, [
     ["$.worldLevels", state.worldLevels],
     ["$.domains", state.domains],
@@ -243,6 +246,29 @@ export function validateWorldState(state) {
         tier.domainId,
       );
     }
+    validateEnum(errors, DomainTierStatus, tier.status, `${path}.status`);
+    validateEnum(errors, MasteryStatus, tier.masteryStatus, `${path}.masteryStatus`);
+    if ((tier.status === DomainTierStatus.MASTERED) !== (tier.masteryStatus === MasteryStatus.MASTERED)) {
+      addError(errors, "INVALID_MASTERY_STATE", path, "Tier status y masteryStatus MASTERED deben ser consistentes.");
+    }
+    if (tier.masteredAt) validateIsoDate(errors, tier.masteredAt, `${path}.masteredAt`);
+    const mastery = tier.masteryRequirements;
+    if (!mastery || !Number.isFinite(mastery.requiredXP) || mastery.requiredXP < 0 ||
+        !Number.isFinite(mastery.minimumProgress) || mastery.minimumProgress < 0 || mastery.minimumProgress > 1) {
+      addError(errors, "INVALID_MASTERY_REQUIREMENTS", `${path}.masteryRequirements`, "Requisitos de maestría inválidos.");
+    } else {
+      mastery.requiredMissionIds.forEach((id) => {
+        if (!missionDefinitionIds.has(id)) addError(errors, "INVALID_REFERENCE", `${path}.masteryRequirements.requiredMissionIds`, `Misión inexistente: ${id}.`);
+      });
+      mastery.requiredMilestoneIds.forEach((id) => {
+        if (!milestoneIds.has(id)) addError(errors, "INVALID_REFERENCE", `${path}.masteryRequirements.requiredMilestoneIds`, `Hito inexistente: ${id}.`);
+      });
+      mastery.requiredBossIds.forEach((id) => {
+        if (!bossIds.has(id)) addError(errors, "INVALID_REFERENCE", `${path}.masteryRequirements.requiredBossIds`, `Jefe inexistente: ${id}.`);
+      });
+      mastery.blockedConditionStates.forEach((status, statusIndex) =>
+        validateEnum(errors, DomainConditionState, status, `${path}.masteryRequirements.blockedConditionStates[${statusIndex}]`));
+    }
     if (!Number.isFinite(tier.tierXP) || tier.tierXP < 0 || tier.tierXP !== deriveTierXP(state, tier.id)) {
       addError(errors, "INVALID_XP_CACHE", `${path}.tierXP`, "tierXP no coincide con xpTransactions.");
     }
@@ -280,6 +306,52 @@ export function validateWorldState(state) {
     }
     if (boss.domainId && !domainIds.has(boss.domainId)) {
       addError(errors, "INVALID_REFERENCE", `${path}.domainId`, `El Dominio ${boss.domainId} no existe.`);
+    }
+    (boss.challengeMissionIds ?? []).forEach((id, challengeIndex) => {
+      if (!state.missionDefinitions.some((mission) => mission.id === id)) {
+        addError(errors, "INVALID_REFERENCE", `${path}.challengeMissionIds[${challengeIndex}]`, `La misión ${id} no existe.`);
+      }
+    });
+    [...(boss.requirementGroups ?? []), ...(boss.finalRequirementGroups ?? [])].forEach((group, groupIndex) => {
+      const groupPath = `${path}.requirementGroups[${groupIndex}]`;
+      if (!group.id || !["ALL", "ANY"].includes(group.mode) || !Array.isArray(group.requirements) || group.requirements.length === 0) {
+        addError(errors, "INVALID_REQUIREMENT_GROUP", groupPath, "Grupo de requisitos inválido.");
+      }
+      (group.requirements ?? []).forEach((requirement, requirementIndex) => {
+        const requirementPath = `${groupPath}.requirements[${requirementIndex}]`;
+        const validTypes = ["MISSION_COMPLETED", "DOMAIN_TIER_PROGRESS", "DOMAIN_TIER_MASTERED", "MILESTONE_COMPLETED", "DOMAIN_CONDITION_NOT", "BOSS_DEFEATED"];
+        if (!validTypes.includes(requirement.type)) addError(errors, "INVALID_REQUIREMENT_GROUP", requirementPath, "Tipo de requisito no soportado.");
+        if (requirement.missionDefinitionId && !missionDefinitionIds.has(requirement.missionDefinitionId)) addError(errors, "INVALID_REFERENCE", requirementPath, "Misión requerida inexistente.");
+        if (requirement.domainTierId && !tierIds.has(requirement.domainTierId)) addError(errors, "INVALID_REFERENCE", requirementPath, "Tier requerido inexistente.");
+        if (requirement.milestoneId && !milestoneIds.has(requirement.milestoneId)) addError(errors, "INVALID_REFERENCE", requirementPath, "Hito requerido inexistente.");
+        if (requirement.bossId && !bossIds.has(requirement.bossId)) addError(errors, "INVALID_REFERENCE", requirementPath, "Jefe requerido inexistente.");
+        if (requirement.domainId && !domainIds.has(requirement.domainId)) addError(errors, "INVALID_REFERENCE", requirementPath, "Dominio requerido inexistente.");
+      });
+    });
+  });
+
+  state.milestones.forEach((milestone, index) => {
+    const path = `$.milestones[${index}]`;
+    validateEnum(errors, MilestoneStatus, milestone.status, `${path}.status`);
+    if (!domainIds.has(milestone.domainId) || !tierIds.has(milestone.domainTierId) || !worldLevelIds.has(milestone.worldLevelId)) {
+      addError(errors, "INVALID_REFERENCE", path, "El hito contiene referencias inválidas.");
+    }
+    if (!Number.isFinite(milestone.weight) || milestone.weight < 0) {
+      addError(errors, "INVALID_MILESTONE", `${path}.weight`, "El peso del hito debe ser no negativo.");
+    }
+    if (milestone.completedAt) validateIsoDate(errors, milestone.completedAt, `${path}.completedAt`);
+    if (!Array.isArray(milestone.evidenceEntries)) addError(errors, "INVALID_EVIDENCE", `${path}.evidenceEntries`, "evidenceEntries debe ser un arreglo.");
+    (milestone.requirements ?? []).forEach((requirement, requirementIndex) => {
+      if (requirement.type === "MISSION_COMPLETED" &&
+          !state.missionDefinitions.some((mission) => mission.id === requirement.missionDefinitionId)) {
+        addError(errors, "INVALID_REFERENCE", `${path}.requirements[${requirementIndex}]`, "Misión requerida inexistente.");
+      }
+    });
+  });
+  state.domainTiers.forEach((tier, index) => {
+    const milestones = state.milestones.filter((item) => item.domainTierId === tier.id);
+    if (milestones.length > 0 && milestones.reduce((sum, item) => sum + item.weight, 0) !== 100) {
+      addError(errors, "INVALID_MILESTONE_WEIGHT", `$.domainTiers[${index}]`, "Los pesos de hitos del Tier deben sumar 100.");
     }
   });
 
@@ -426,7 +498,6 @@ export function validateWorldState(state) {
     });
   });
 
-  const missionDefinitionIds = new Set(state.missionDefinitions.map((definition) => definition.id));
   const missionAvailability = state.system?.missionAvailability;
   if (!missionAvailability || typeof missionAvailability !== "object" || Array.isArray(missionAvailability)) {
     addError(

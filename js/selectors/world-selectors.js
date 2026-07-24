@@ -9,6 +9,9 @@ import {
   calculateDomainTierCompletion,
   calculateDomainTierProgress,
 } from "../services/domain-progress-service.js";
+import { evaluateMasteryEligibility } from "../services/mastery-service.js";
+import { evaluateBossAvailability } from "../services/boss-service.js";
+import { evaluateWorldLevelCompletion } from "../services/world-level-service.js";
 
 export const selectWorldLevel = (state, id) => state.worldLevels.find((item) => item.id === id) ?? null;
 export const selectDomain = (state, id) => state.domains.find((item) => item.id === id) ?? null;
@@ -43,3 +46,16 @@ export const selectDomainTierCompletion = (state, id) => selectDomainTier(state,
 export const selectAvailableMissions = (state) => state.missionDefinitions.filter((item) => state.system.missionAvailability[item.id] === MissionStatus.AVAILABLE);
 export const selectActiveMissions = (state) => state.missionInstances.filter((item) => item.status === MissionStatus.ACTIVE);
 export const selectCompletedMissions = (state) => state.missionInstances.filter((item) => item.status === MissionStatus.COMPLETED);
+export const selectMasteryEvaluation = (state, id) => selectDomainTier(state, id) ? evaluateMasteryEligibility(state, id) : null;
+export const selectMasteryStatus = (state, id) => selectDomainTier(state, id)?.masteryStatus ?? null;
+export const selectEligibleDomainTiers = (state) => state.domainTiers.filter((item) => item.masteryStatus === "ELIGIBLE");
+export const selectMasteredDomainTiers = (state) => state.domainTiers.filter((item) => item.masteryStatus === "MASTERED");
+export const selectMilestone = (state, id) => state.milestones.find((item) => item.id === id) ?? null;
+export const selectAvailableMilestones = (state) => state.milestones.filter((item) => item.status === "AVAILABLE");
+export const selectCompletedMilestones = (state) => state.milestones.filter((item) => item.status === "COMPLETED");
+export const selectBoss = (state, id) => state.bosses.find((item) => item.id === id) ?? null;
+export const selectBossAvailability = (state, id) => selectBoss(state, id) ? evaluateBossAvailability(state, id) : null;
+export const selectChallengeableBosses = (state) => state.bosses.filter((item) => item.status === "CHALLENGE_AVAILABLE");
+export const selectDefeatedBosses = (state) => state.bosses.filter((item) => item.status === "DEFEATED");
+export const selectWorldLevelProgress = (state, id) => selectWorldLevel(state, id) ? evaluateWorldLevelCompletion(state, id).progress : null;
+export const selectWorldLevelCompletion = (state, id) => selectWorldLevel(state, id) ? evaluateWorldLevelCompletion(state, id) : null;

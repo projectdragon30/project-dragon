@@ -9,6 +9,10 @@ import "./rewards.test.js";
 import "./xp.test.js";
 import "./domain-progress.test.js";
 import "./selectors.test.js";
+import "./mastery.test.js";
+import "./milestones.test.js";
+import "./bosses.test.js";
+import "./world-level.test.js";
 import { runTests } from "./test-utils.js";
 
 const summary = await runTests();

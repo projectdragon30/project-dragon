@@ -112,6 +112,9 @@ export const BossStatus = createEnum([
   "DEFEATED",
 ]);
 
+export const DomainTierStatus = createEnum(["ACTIVE", "MASTERED"]);
+export const MilestoneStatus = createEnum(["LOCKED", "AVAILABLE", "COMPLETED"]);
+
 export const CommandType = createEnum([
   "MAKE_DOMAIN_AVAILABLE",
   "ACTIVATE_DOMAIN",
@@ -126,6 +129,16 @@ export const CommandType = createEnum([
   "EXPIRE_MISSION",
   "UPDATE_OBJECTIVE",
   "SUBMIT_EVIDENCE",
+  "EVALUATE_DOMAIN_MASTERY",
+  "REQUEST_DOMAIN_MASTERY",
+  "GRANT_DOMAIN_MASTERY",
+  "REJECT_DOMAIN_MASTERY",
+  "MAKE_MILESTONE_AVAILABLE",
+  "COMPLETE_MILESTONE",
+  "REVEAL_BOSS",
+  "EVALUATE_BOSS_AVAILABILITY",
+  "CHALLENGE_BOSS",
+  "DEFEAT_BOSS",
 ]);
 
 export const EventType = createEnum([
@@ -149,6 +162,20 @@ export const EventType = createEnum([
   "MISSION_REWARD_GRANTED",
   "XP_GRANTED",
   "DOMAIN_PROGRESS_UPDATED",
+  "MASTERY_ELIGIBILITY_CHANGED",
+  "MASTERY_REVIEW_REQUESTED",
+  "MASTERY_GRANTED",
+  "MASTERY_REVIEW_REJECTED",
+  "DOMAIN_TIER_MASTERED",
+  "DOMAIN_MASTERED",
+  "MILESTONE_AVAILABLE",
+  "MILESTONE_COMPLETED",
+  "BOSS_REVEALED",
+  "BOSS_CHALLENGE_AVAILABLE",
+  "BOSS_CHALLENGED",
+  "BOSS_DEFEATED",
+  "WORLD_LEVEL_PROGRESS_UPDATED",
+  "WORLD_LEVEL_COMPLETED",
 ]);
 
 export const EngineErrorCode = createEnum([
@@ -172,6 +199,21 @@ export const EngineErrorCode = createEnum([
   "INVALID_REWARD",
   "INVALID_XP_TRANSACTION",
   "DOMAIN_TIER_NOT_FOUND",
+  "MASTERY_NOT_ELIGIBLE",
+  "MASTERY_NOT_IN_REVIEW",
+  "MASTERY_ALREADY_GRANTED",
+  "MASTERY_REQUIREMENTS_NOT_MET",
+  "MASTERY_REJECTION_REASON_REQUIRED",
+  "MILESTONE_NOT_FOUND",
+  "MILESTONE_NOT_AVAILABLE",
+  "MILESTONE_REQUIREMENTS_NOT_MET",
+  "BOSS_NOT_FOUND",
+  "BOSS_NOT_REVEALED",
+  "BOSS_NOT_AVAILABLE",
+  "BOSS_NOT_CHALLENGED",
+  "BOSS_REQUIREMENTS_NOT_MET",
+  "INVALID_REQUIREMENT_GROUP",
+  "WORLD_LEVEL_NOT_FOUND",
 ]);
 
 export const GameEnums = Object.freeze({
@@ -189,6 +231,8 @@ export const GameEnums = Object.freeze({
   RetryPolicy,
   BossScope,
   BossStatus,
+  DomainTierStatus,
+  MilestoneStatus,
   CommandType,
   EventType,
   EngineErrorCode,
