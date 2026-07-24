@@ -51,7 +51,7 @@ test("cumplir todos los requisitos permite solicitar y conceder maestría", () =
   equal(engine.dispatch(command(CommandType.REQUEST_DOMAIN_MASTERY, { domainTierId: tierId })).data.masteryStatus, MasteryStatus.IN_REVIEW);
   const granted = engine.dispatch(command(CommandType.GRANT_DOMAIN_MASTERY, { domainTierId: tierId }));
   assert(granted.success);
-  equal(granted.events.map((event) => event.type).join(","), "MASTERY_GRANTED,DOMAIN_TIER_MASTERED,DOMAIN_MASTERED");
+  equal(granted.events.map((event) => event.type).join(","), "MASTERY_GRANTED,DOMAIN_TIER_MASTERED,DOMAIN_MASTERED,LEGACY_CONTRIBUTION_RECORDED");
 });
 
 test("GRANT reevalúa requisitos y un rechazo no muta el estado", () => {

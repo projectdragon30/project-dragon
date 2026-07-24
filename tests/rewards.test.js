@@ -52,6 +52,7 @@ test("COMPLETE_MISSION produce eventos en orden causal", () => {
     EventType.MISSION_REWARD_GRANTED,
     EventType.XP_GRANTED,
     EventType.DOMAIN_PROGRESS_UPDATED,
+    EventType.LEGACY_CONTRIBUTION_RECORDED,
   ].join(","));
 });
 
@@ -118,7 +119,7 @@ test("suscriptores reciben un único lote con todos los eventos de COMPLETE_MISS
   });
   engine.dispatch(command(CommandType.COMPLETE_MISSION, { missionInstanceId }));
   equal(calls, 1);
-  equal(received.length, 4);
+  equal(received.length, 5);
 });
 
 test("estado completado conserva serialización JSON", () => {

@@ -36,6 +36,8 @@ export function createInitialWorldState(options = {}) {
     eventLog: [],
     system: {
       lastEventSequence: 0,
+      conditionSignals: [],
+      restorationHistory: [],
       missionAvailability: Object.fromEntries(
         content.missionDefinitions.map((definition) => [definition.id, MissionStatus.HIDDEN]),
       ),

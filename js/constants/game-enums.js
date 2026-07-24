@@ -114,6 +114,9 @@ export const BossStatus = createEnum([
 
 export const DomainTierStatus = createEnum(["ACTIVE", "MASTERED"]);
 export const MilestoneStatus = createEnum(["LOCKED", "AVAILABLE", "COMPLETED"]);
+export const ConditionSignalType = createEnum(["NEGATIVE", "POSITIVE", "RESTORATIVE"]);
+export const ConditionSignalSeverity = createEnum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]);
+export const AffinityStrength = createEnum(["LOW", "MEDIUM", "HIGH"]);
 
 export const CommandType = createEnum([
   "MAKE_DOMAIN_AVAILABLE",
@@ -139,6 +142,13 @@ export const CommandType = createEnum([
   "EVALUATE_BOSS_AVAILABILITY",
   "CHALLENGE_BOSS",
   "DEFEAT_BOSS",
+  "RECORD_CONDITION_SIGNAL",
+  "RESOLVE_CONDITION_SIGNAL",
+  "EVALUATE_DOMAIN_CONDITION",
+  "ACTIVATE_RESTORATION_MISSION",
+  "COMPLETE_DOMAIN_RESTORATION",
+  "ACTIVATE_AFFINITY",
+  "DEACTIVATE_AFFINITY",
 ]);
 
 export const EventType = createEnum([
@@ -176,6 +186,13 @@ export const EventType = createEnum([
   "BOSS_DEFEATED",
   "WORLD_LEVEL_PROGRESS_UPDATED",
   "WORLD_LEVEL_COMPLETED",
+  "CONDITION_SIGNAL_RECORDED",
+  "CONDITION_SIGNAL_RESOLVED",
+  "DOMAIN_CONDITION_EVALUATED",
+  "RESTORATION_MISSION_AVAILABLE",
+  "AFFINITY_ACTIVATED",
+  "AFFINITY_DEACTIVATED",
+  "LEGACY_CONTRIBUTION_RECORDED",
 ]);
 
 export const EngineErrorCode = createEnum([
@@ -214,6 +231,21 @@ export const EngineErrorCode = createEnum([
   "BOSS_REQUIREMENTS_NOT_MET",
   "INVALID_REQUIREMENT_GROUP",
   "WORLD_LEVEL_NOT_FOUND",
+  "CONDITION_SIGNAL_NOT_FOUND",
+  "INVALID_CONDITION_SIGNAL",
+  "CONDITION_SIGNAL_ALREADY_RESOLVED",
+  "CONDITION_EVALUATION_NOT_APPLICABLE",
+  "RESTORATION_NOT_AVAILABLE",
+  "RESTORATION_REQUIREMENTS_NOT_MET",
+  "RESTORATION_MISSION_NOT_FOUND",
+  "AFFINITY_NOT_FOUND",
+  "AFFINITY_ALREADY_ACTIVE",
+  "AFFINITY_ALREADY_INACTIVE",
+  "DUPLICATE_ACTIVE_AFFINITY",
+  "INVALID_AFFINITY",
+  "INVALID_CONTRIBUTION",
+  "DUPLICATE_CONTRIBUTION",
+  "LEGACY_DOMAIN_INVALID_STATE",
 ]);
 
 export const GameEnums = Object.freeze({
@@ -233,6 +265,9 @@ export const GameEnums = Object.freeze({
   BossStatus,
   DomainTierStatus,
   MilestoneStatus,
+  ConditionSignalType,
+  ConditionSignalSeverity,
+  AffinityStrength,
   CommandType,
   EventType,
   EngineErrorCode,

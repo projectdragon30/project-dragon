@@ -8,6 +8,7 @@ import {
   MasteryStatus,
   MilestoneStatus,
   MissionStatus,
+  MissionCriticality,
   ObjectiveType,
   isEnumValue,
 } from "../constants/game-enums.js";
@@ -26,6 +27,11 @@ import { evaluateWorldLevelCompletion } from "../services/world-level-service.js
 import { validateMasteryRequest, validateMasteryReview } from "../validators/mastery-validator.js";
 import { validateMilestoneCompletion } from "../validators/milestone-validator.js";
 import { BOSS_TRANSITIONS, validateBossTransition } from "../validators/boss-validator.js";
+import { evaluateDomainCondition } from "../services/condition-service.js";
+import { evaluateRestorationCompletion, evaluateRestorationEligibility } from "../services/restoration-service.js";
+import { recordLegacyContribution, legacyContributionEvent } from "../services/legacy-contribution-service.js";
+import { validateConditionSignal } from "../validators/condition-validator.js";
+import { validateRestorationActivation } from "../validators/restoration-validator.js";
 import {
   validateDomainActivationTransition,
   validateDomainAvailabilityTransition,
@@ -80,7 +86,14 @@ export class CommandHandler {
       [CommandType.REVEAL_BOSS]: () => this.revealBoss(state, command),
       [CommandType.EVALUATE_BOSS_AVAILABILITY]: () => this.evaluateBossAvailability(state, command),
       [CommandType.CHALLENGE_BOSS]: () => this.challengeBoss(state, command),
-      [CommandType.DEFEAT_BOSS]: () => this.defeatBoss(state, command),
+      [CommandType.DEFEAT_BOSS]: () => this.defeatBoss(state, command, timestamp),
+      [CommandType.RECORD_CONDITION_SIGNAL]: () => this.recordConditionSignal(state, command, timestamp),
+      [CommandType.RESOLVE_CONDITION_SIGNAL]: () => this.resolveConditionSignal(state, command, timestamp),
+      [CommandType.EVALUATE_DOMAIN_CONDITION]: () => this.evaluateDomainCondition(state, command),
+      [CommandType.ACTIVATE_RESTORATION_MISSION]: () => this.activateRestorationMission(state, command),
+      [CommandType.COMPLETE_DOMAIN_RESTORATION]: () => this.completeDomainRestoration(state, command, timestamp),
+      [CommandType.ACTIVATE_AFFINITY]: () => this.setAffinityActive(state, command, true),
+      [CommandType.DEACTIVATE_AFFINITY]: () => this.setAffinityActive(state, command, false),
     };
 
     if (!isEnumValue(CommandType, command.type) || !handlers[command.type]) {
@@ -267,6 +280,18 @@ export class CommandHandler {
           progress: calculateDomainTierProgress(state, definition.primaryDomainTierId),
         },
       });
+      this.addLegacyContribution(state, events, {
+        sourceType: "MISSION",
+        sourceId: instance.id,
+        domainId: definition.primaryDomainId,
+        contributionType: definition.criticality === MissionCriticality.CORE
+          ? "CORE_MISSION_COMPLETED"
+          : definition.criticality === MissionCriticality.MASTERY
+            ? "MASTERY_MISSION_COMPLETED"
+            : "MISSION_COMPLETED",
+        commandId: command.id,
+        createdAt: timestamp,
+      });
     }
     return success({ missionInstanceId: instance.id, status: targetStatus }, events);
   }
@@ -422,6 +447,10 @@ export class CommandHandler {
       domain.masteredAt = timestamp;
       events.push({ type: EventType.DOMAIN_MASTERED, payload: { domainId: domain.id } });
     }
+    this.addLegacyContribution(state, events, {
+      sourceType: "DOMAIN_TIER", sourceId: lookup.tier.id, domainId: domain.id,
+      contributionType: "DOMAIN_TIER_MASTERED", commandId: command.id, createdAt: timestamp,
+    });
     return success({ domainTierId: lookup.tier.id, masteryStatus: lookup.tier.masteryStatus }, events);
   }
 
@@ -478,10 +507,15 @@ export class CommandHandler {
     lookup.milestone.status = MilestoneStatus.COMPLETED;
     lookup.milestone.completedAt = timestamp;
     const progress = calculateDomainTierProgress(state, lookup.milestone.domainTierId);
-    return success({ milestoneId: lookup.milestone.id, status: lookup.milestone.status }, [
+    const events = [
       { type: EventType.MILESTONE_COMPLETED, payload: { milestoneId: lookup.milestone.id } },
       { type: EventType.DOMAIN_PROGRESS_UPDATED, payload: { domainTierId: lookup.milestone.domainTierId, progress } },
-    ]);
+    ];
+    this.addLegacyContribution(state, events, {
+      sourceType: "MILESTONE", sourceId: lookup.milestone.id, domainId: lookup.milestone.domainId,
+      contributionType: "MILESTONE_COMPLETED", commandId: command.id, createdAt: timestamp,
+    });
+    return success({ milestoneId: lookup.milestone.id, status: lookup.milestone.status }, events);
   }
 
   findBoss(state, payload) {
@@ -528,7 +562,7 @@ export class CommandHandler {
       { type: EventType.BOSS_CHALLENGED, payload: { bossId: lookup.boss.id, challengeMissionIds: lookup.boss.challengeMissionIds } });
   }
 
-  defeatBoss(state, command) {
+  defeatBoss(state, command, timestamp = state.metadata.updatedAt) {
     const lookup = this.findBoss(state, command.payload);
     if (lookup.error) return lookup.error;
     const validation = validateBossTransition(lookup.boss, BOSS_TRANSITIONS.defeat, "BOSS_NOT_CHALLENGED");
@@ -543,6 +577,120 @@ export class CommandHandler {
     if (tierId) events.push({ type: EventType.DOMAIN_PROGRESS_UPDATED, payload: { domainTierId: tierId, progress: calculateDomainTierProgress(state, tierId) } });
     events.push({ type: EventType.WORLD_LEVEL_PROGRESS_UPDATED, payload: { worldLevelId: lookup.boss.worldLevelId, ...levelEvaluation } });
     if (levelEvaluation.completed) events.push({ type: EventType.WORLD_LEVEL_COMPLETED, payload: { worldLevelId: lookup.boss.worldLevelId } });
+    this.addLegacyContribution(state, events, {
+      sourceType: "BOSS", sourceId: lookup.boss.id, domainId: "disciplina",
+      contributionType: "BOSS_DEFEATED", commandId: command.id, createdAt: timestamp,
+    });
     return success({ bossId: lookup.boss.id, status: lookup.boss.status }, events);
+  }
+
+  addLegacyContribution(state, events, input) {
+    const event = legacyContributionEvent(recordLegacyContribution(state, input));
+    if (event) events.push(event);
+  }
+
+  recordConditionSignal(state, command, timestamp) {
+    const validation = validateConditionSignal(state, command.payload);
+    if (!validation.valid) return validationFailure(validation);
+    const signal = {
+      id: command.payload.id ?? `condition-signal-${command.id}`,
+      domainId: command.payload.domainId,
+      type: command.payload.type,
+      severity: command.payload.severity,
+      sourceType: command.payload.sourceType,
+      sourceId: command.payload.sourceId,
+      occurredAt: command.payload.occurredAt ?? timestamp,
+      expiresAt: command.payload.expiresAt ?? null,
+      resolvedAt: null,
+      metadata: command.payload.metadata ?? {},
+    };
+    if (state.system.conditionSignals.some((item) => item.id === signal.id)) {
+      return failure("INVALID_CONDITION_SIGNAL", "El id de la señal ya existe.");
+    }
+    state.system.conditionSignals.push(signal);
+    return success({ signal }, { type: EventType.CONDITION_SIGNAL_RECORDED, payload: { signalId: signal.id, domainId: signal.domainId } });
+  }
+
+  resolveConditionSignal(state, command, timestamp) {
+    const signal = state.system.conditionSignals.find((item) => item.id === command.payload.signalId);
+    if (!signal) return failure("CONDITION_SIGNAL_NOT_FOUND", "Señal no encontrada.");
+    if (signal.resolvedAt) return failure("CONDITION_SIGNAL_ALREADY_RESOLVED", "La señal ya fue resuelta.");
+    signal.resolvedAt = timestamp;
+    return success({ signalId: signal.id, resolvedAt: timestamp },
+      { type: EventType.CONDITION_SIGNAL_RESOLVED, payload: { signalId: signal.id, domainId: signal.domainId } });
+  }
+
+  evaluateDomainCondition(state, command) {
+    const domain = state.domains.find((item) => item.id === command.payload.domainId);
+    if (!domain) return failure("DOMAIN_NOT_FOUND", "Dominio no encontrado.");
+    const evaluation = evaluateDomainCondition(state, domain.id);
+    const previous = domain.conditionState;
+    let next = previous;
+    if (previous === DomainConditionState.STABLE && evaluation.recommendedCondition !== DomainConditionState.STABLE) next = DomainConditionState.STRAINED;
+    if (previous === DomainConditionState.STRAINED) next = evaluation.recommendedCondition;
+    if (previous === DomainConditionState.RECOVERING && evaluation.recommendedCondition === DomainConditionState.CORRUPTED) next = DomainConditionState.CORRUPTED;
+    const events = [{ type: EventType.DOMAIN_CONDITION_EVALUATED, payload: evaluation }];
+    if (next !== previous) {
+      domain.conditionState = next;
+      const type = next === DomainConditionState.STABLE
+        ? EventType.DOMAIN_RESTORED
+        : next === DomainConditionState.STRAINED
+          ? EventType.DOMAIN_STRAINED
+          : previous === DomainConditionState.RECOVERING
+            ? EventType.DOMAIN_RECOVERY_INTERRUPTED
+            : EventType.DOMAIN_CORRUPTED;
+      events.push({ type, payload: { domainId: domain.id, from: previous, to: next } });
+    }
+    return success(evaluation, events);
+  }
+
+  activateRestorationMission(state, command) {
+    const domain = state.domains.find((item) => item.id === command.payload.domainId);
+    if (!domain) return failure("DOMAIN_NOT_FOUND", "Dominio no encontrado.");
+    const validation = validateRestorationActivation(domain);
+    if (!validation.valid) return validationFailure(validation);
+    const evaluation = evaluateRestorationEligibility(state, domain.id);
+    if (!evaluation.eligible) return failure("RESTORATION_MISSION_NOT_FOUND", "No existe restauración configurada.");
+    evaluation.missionDefinitionIds.forEach((id) => { state.system.missionAvailability[id] = MissionStatus.AVAILABLE; });
+    return success(evaluation, {
+      type: EventType.RESTORATION_MISSION_AVAILABLE,
+      payload: { domainId: domain.id, missionDefinitionIds: evaluation.missionDefinitionIds },
+    });
+  }
+
+  completeDomainRestoration(state, command, timestamp) {
+    const domain = state.domains.find((item) => item.id === command.payload.domainId);
+    if (!domain) return failure("DOMAIN_NOT_FOUND", "Dominio no encontrado.");
+    if (domain.conditionState !== DomainConditionState.RECOVERING) {
+      return failure("RESTORATION_NOT_AVAILABLE", "El Dominio debe estar RECOVERING.");
+    }
+    const evaluation = evaluateRestorationCompletion(state, domain.id);
+    if (!evaluation.satisfied) return failure("RESTORATION_REQUIREMENTS_NOT_MET", "La restauración conserva requisitos pendientes.", { evaluation });
+    domain.conditionState = DomainConditionState.STABLE;
+    const trace = { id: `restoration-${command.id}`, domainId: domain.id, completedAt: timestamp, commandId: command.id, missionDefinitionIds: evaluation.completedMissionIds };
+    state.system.restorationHistory.push(trace);
+    const events = [{ type: EventType.DOMAIN_RESTORED, payload: { domainId: domain.id, restorationId: trace.id } }];
+    this.addLegacyContribution(state, events, {
+      sourceType: "RESTORATION", sourceId: trace.id, domainId: domain.id,
+      contributionType: "RESTORATION_COMPLETED", commandId: command.id, createdAt: timestamp,
+    });
+    return success({ domainId: domain.id, conditionState: domain.conditionState }, events);
+  }
+
+  setAffinityActive(state, command, active) {
+    const affinity = state.affinities.find((item) => item.id === command.payload.affinityId);
+    if (!affinity) return failure("AFFINITY_NOT_FOUND", "Afinidad no encontrada.");
+    if (affinity.active === active) {
+      return failure(active ? "AFFINITY_ALREADY_ACTIVE" : "AFFINITY_ALREADY_INACTIVE", "La afinidad ya está en ese estado.");
+    }
+    if (active && state.affinities.some((item) => item.id !== affinity.id && item.active &&
+      item.sourceDomainId === affinity.sourceDomainId && item.targetDomainId === affinity.targetDomainId)) {
+      return failure("DUPLICATE_ACTIVE_AFFINITY", "Ya existe una afinidad activa para esta dirección.");
+    }
+    affinity.active = active;
+    return success({ affinityId: affinity.id, active }, {
+      type: active ? EventType.AFFINITY_ACTIVATED : EventType.AFFINITY_DEACTIVATED,
+      payload: { affinityId: affinity.id, sourceDomainId: affinity.sourceDomainId, targetDomainId: affinity.targetDomainId },
+    });
   }
 }

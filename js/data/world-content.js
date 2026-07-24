@@ -1,6 +1,7 @@
 import {
   BossScope,
   BossStatus,
+  AffinityStrength,
   DomainTierStatus,
   DomainConditionState,
   DomainProgressionState,
@@ -32,6 +33,29 @@ export const WORLD_LEVELS = Object.freeze([
       contentStatus: "DEMO",
       notes: "PLACEHOLDER: el Nivel I no puede completarse con contenido provisional.",
     }),
+  }),
+]);
+
+export const AFFINITIES = Object.freeze([
+  Object.freeze({
+    id: "afinidad-mente-disciplina-demo",
+    sourceDomainId: "mente",
+    targetDomainId: "disciplina",
+    strength: AffinityStrength.MEDIUM,
+    active: false,
+    description: "PLACEHOLDER técnico DEMO.",
+    effects: Object.freeze({ resilienceModifier: 0.1, recoveryModifier: 0.15, consistencyModifier: 0.1 }),
+    metadata: Object.freeze({ contentStatus: "DEMO", notes: "No constituye canon definitivo." }),
+  }),
+  Object.freeze({
+    id: "afinidad-disciplina-imperio-demo",
+    sourceDomainId: "disciplina",
+    targetDomainId: "imperio",
+    strength: AffinityStrength.LOW,
+    active: false,
+    description: "PLACEHOLDER técnico DEMO.",
+    effects: Object.freeze({ resilienceModifier: 0.05, recoveryModifier: 0.05, consistencyModifier: 0.1 }),
+    metadata: Object.freeze({ contentStatus: "DEMO", notes: "No constituye canon definitivo." }),
   }),
 ]);
 
@@ -221,6 +245,32 @@ export const MISSION_DEFINITIONS = Object.freeze([
     rewards: Object.freeze([]),
     metadata: Object.freeze({ contentStatus: "DEMO", notes: "PLACEHOLDER técnico sin lore ni recompensas." }),
   }),
+  Object.freeze({
+    id: "restauracion-disciplina-demo",
+    title: "PROTOCOLO DE RESTAURACIÓN — DISCIPLINA",
+    contentStatus: "DEMO",
+    type: MissionType.RESTORATION,
+    scope: MissionScope.RESTORATION,
+    worldLevelId: "awakening",
+    primaryDomainId: "disciplina",
+    primaryDomainTierId: "disciplina-tier-1",
+    relatedDomainIds: Object.freeze([]),
+    criticality: MissionCriticality.STANDARD,
+    priority: MissionPriority.HIGH,
+    difficulty: MissionDifficulty.STANDARD,
+    retryPolicy: RetryPolicy.AFTER_REVIEW,
+    objectives: Object.freeze([
+      ["identificar-causa-demo", ObjectiveType.EVIDENCE, 25],
+      ["ejecutar-accion-correctiva-demo", ObjectiveType.EVIDENCE, 25],
+      ["registrar-evidencia-demo", ObjectiveType.EVIDENCE, 25],
+      ["confirmar-estabilidad-demo", ObjectiveType.EVIDENCE, 25],
+    ].map(([id, type, weight]) => Object.freeze({
+      id, description: "PLACEHOLDER técnico verificable.", required: true, weight, type,
+      evidenceLevel: EvidenceLevel.SELF_REPORTED, responseFormat: "TEXT",
+    }))),
+    rewards: Object.freeze([]),
+    metadata: Object.freeze({ contentStatus: "DEMO", notes: "PLACEHOLDER técnico de restauración sin XP." }),
+  }),
 ]);
 
 export const MILESTONES = Object.freeze([
@@ -247,7 +297,7 @@ export const INITIAL_WORLD_CONTENT = Object.freeze({
   worldLevels: WORLD_LEVELS,
   domains: DOMAINS,
   domainTiers: DOMAIN_TIERS,
-  affinities: Object.freeze([]),
+  affinities: AFFINITIES,
   contributions: Object.freeze([]),
   missionDefinitions: MISSION_DEFINITIONS,
   milestones: MILESTONES,

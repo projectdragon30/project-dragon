@@ -1,6 +1,9 @@
 import {
   BossScope,
   BossStatus,
+  AffinityStrength,
+  ConditionSignalSeverity,
+  ConditionSignalType,
   DomainConditionState,
   DomainProgressionState,
   DomainTierStatus,
@@ -295,6 +298,16 @@ export function validateWorldState(state) {
     if (affinity.sourceDomainId === affinity.targetDomainId) {
       addError(errors, "SELF_AFFINITY", path, "Una afinidad no puede usar el mismo Dominio como origen y destino.");
     }
+    validateEnum(errors, AffinityStrength, affinity.strength, `${path}.strength`);
+    if (typeof affinity.active !== "boolean" || !affinity.effects || typeof affinity.effects !== "object") {
+      addError(errors, "INVALID_AFFINITY", path, "Afinidad incompleta.");
+    }
+  });
+  const activeDirections = new Set();
+  state.affinities.filter((affinity) => affinity.active).forEach((affinity, index) => {
+    const key = `${affinity.sourceDomainId}->${affinity.targetDomainId}`;
+    if (activeDirections.has(key)) addError(errors, "DUPLICATE_ACTIVE_AFFINITY", `$.affinities[${index}]`, "Afinidad activa duplicada.");
+    activeDirections.add(key);
   });
 
   state.bosses.forEach((boss, index) => {
@@ -497,6 +510,36 @@ export function validateWorldState(state) {
       }
     });
   });
+
+  if (!Array.isArray(state.system?.conditionSignals)) {
+    addError(errors, "INVALID_RUNTIME_STATE", "$.system.conditionSignals", "conditionSignals debe ser un arreglo.");
+  } else {
+    validateUniqueIds(errors, state.system.conditionSignals, "$.system.conditionSignals");
+    state.system.conditionSignals.forEach((signal, index) => {
+      const path = `$.system.conditionSignals[${index}]`;
+      if (!domainIds.has(signal.domainId)) addError(errors, "INVALID_REFERENCE", `${path}.domainId`, "Dominio de señal inexistente.");
+      validateEnum(errors, ConditionSignalType, signal.type, `${path}.type`);
+      validateEnum(errors, ConditionSignalSeverity, signal.severity, `${path}.severity`);
+      validateIsoDate(errors, signal.occurredAt, `${path}.occurredAt`);
+      if (signal.expiresAt) validateIsoDate(errors, signal.expiresAt, `${path}.expiresAt`);
+      if (signal.resolvedAt) validateIsoDate(errors, signal.resolvedAt, `${path}.resolvedAt`);
+    });
+  }
+  if (!Array.isArray(state.system?.restorationHistory)) {
+    addError(errors, "INVALID_RUNTIME_STATE", "$.system.restorationHistory", "restorationHistory debe ser un arreglo.");
+  }
+
+  state.contributions.forEach((contribution, index) => {
+    const path = `$.contributions[${index}]`;
+    if (!domainIds.has(contribution.domainId) || !Number.isFinite(contribution.amount) || contribution.amount <= 0 ||
+        !contribution.sourceType || !contribution.sourceId || !contribution.contributionType || !contribution.commandId) {
+      addError(errors, "INVALID_CONTRIBUTION", path, "Contribución incompleta o inválida.");
+    }
+    validateIsoDate(errors, contribution.createdAt, `${path}.createdAt`);
+  });
+  if (state.xpTransactions.some((transaction) => transaction.domainId === "legado")) {
+    addError(errors, "LEGACY_DOMAIN_INVALID_STATE", "$.xpTransactions", "Legado no puede recibir XP.");
+  }
 
   const missionAvailability = state.system?.missionAvailability;
   if (!missionAvailability || typeof missionAvailability !== "object" || Array.isArray(missionAvailability)) {

@@ -28,7 +28,7 @@ test("hito válido se completa, registra evidencia y recalcula progreso sin XP",
     milestoneId, evidence: { kind: "TEXT", value: "evidencia" },
   }));
   assert(result.success);
-  equal(result.events.map((event) => event.type).join(","), "MILESTONE_COMPLETED,DOMAIN_PROGRESS_UPDATED");
+  equal(result.events.map((event) => event.type).join(","), "MILESTONE_COMPLETED,DOMAIN_PROGRESS_UPDATED,LEGACY_CONTRIBUTION_RECORDED");
   const milestone = engine.getSnapshot().milestones[0];
   equal(milestone.status, MilestoneStatus.COMPLETED);
   equal(milestone.evidenceEntries.length, 1);

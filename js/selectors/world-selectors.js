@@ -12,6 +12,9 @@ import {
 import { evaluateMasteryEligibility } from "../services/mastery-service.js";
 import { evaluateBossAvailability } from "../services/boss-service.js";
 import { evaluateWorldLevelCompletion } from "../services/world-level-service.js";
+import { evaluateDomainCondition, selectActiveSignals } from "../services/condition-service.js";
+import { evaluateRestorationEligibility, findRestorationMissions } from "../services/restoration-service.js";
+import { evaluateDomainAffinities } from "../services/affinity-service.js";
 
 export const selectWorldLevel = (state, id) => state.worldLevels.find((item) => item.id === id) ?? null;
 export const selectDomain = (state, id) => state.domains.find((item) => item.id === id) ?? null;
@@ -59,3 +62,21 @@ export const selectChallengeableBosses = (state) => state.bosses.filter((item) =
 export const selectDefeatedBosses = (state) => state.bosses.filter((item) => item.status === "DEFEATED");
 export const selectWorldLevelProgress = (state, id) => selectWorldLevel(state, id) ? evaluateWorldLevelCompletion(state, id).progress : null;
 export const selectWorldLevelCompletion = (state, id) => selectWorldLevel(state, id) ? evaluateWorldLevelCompletion(state, id) : null;
+export const selectConditionSignals = (state, id) => state.system.conditionSignals.filter((item) => item.domainId === id);
+export const selectActiveConditionSignals = (state, id) => selectActiveSignals(state, id);
+export const selectDomainConditionEvaluation = (state, id) => selectDomain(state, id) ? evaluateDomainCondition(state, id) : null;
+export const selectRestorationMissions = (state, id) => findRestorationMissions(state, id);
+export const selectRestorationEligibility = (state, id) => evaluateRestorationEligibility(state, id);
+export const selectIncomingAffinities = (state, id) => state.affinities.filter((item) => item.active && item.targetDomainId === id);
+export const selectOutgoingAffinities = (state, id) => state.affinities.filter((item) => item.active && item.sourceDomainId === id);
+export const selectAffinityEvaluation = (state, id) => selectDomain(state, id) ? evaluateDomainAffinities(state, id) : null;
+export const selectLegacyContributions = (state) => state.contributions;
+export const selectLegacyContributionsByDomain = (state, id) => state.contributions.filter((item) => item.domainId === id);
+export const selectLegacyContributionTotal = (state) => state.contributions.reduce((sum, item) => sum + item.amount, 0);
+export function selectLegacyContributionBreakdown(state) {
+  return state.contributions.reduce((result, item) => {
+    result.byType[item.contributionType] = (result.byType[item.contributionType] ?? 0) + item.amount;
+    result.byDomain[item.domainId] = (result.byDomain[item.domainId] ?? 0) + item.amount;
+    return result;
+  }, { byType: {}, byDomain: {} });
+}

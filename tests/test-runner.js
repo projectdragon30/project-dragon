@@ -13,6 +13,10 @@ import "./mastery.test.js";
 import "./milestones.test.js";
 import "./bosses.test.js";
 import "./world-level.test.js";
+import "./condition.test.js";
+import "./restoration.test.js";
+import "./affinities.test.js";
+import "./legacy-contributions.test.js";
 import { runTests } from "./test-utils.js";
 
 const summary = await runTests();

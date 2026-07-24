@@ -56,7 +56,7 @@ test("jefe puede derrotarse tras completar su desafío, sin conceder XP", () => 
   assert(result.success);
   equal(engine.getSnapshot().bosses[0].status, BossStatus.DEFEATED);
   equal(engine.getSnapshot().xpTransactions.length, xpBefore);
-  equal(result.events.map((event) => event.type).join(","), "BOSS_DEFEATED,DOMAIN_PROGRESS_UPDATED,WORLD_LEVEL_PROGRESS_UPDATED");
+  equal(result.events.map((event) => event.type).join(","), "BOSS_DEFEATED,DOMAIN_PROGRESS_UPDATED,WORLD_LEVEL_PROGRESS_UPDATED,LEGACY_CONTRIBUTION_RECORDED");
 });
 
 test("DEFEATED no puede retroceder ni derrotarse otra vez", () => {
